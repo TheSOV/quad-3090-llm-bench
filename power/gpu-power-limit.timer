@@ -1,0 +1,10 @@
+[Unit]
+Description=Apply the GPU power limit at boot and re-check it every 5 min
+
+[Timer]
+OnBootSec=20s
+OnUnitActiveSec=5min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

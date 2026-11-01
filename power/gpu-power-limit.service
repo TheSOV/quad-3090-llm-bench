@@ -1,0 +1,8 @@
+[Unit]
+Description=GPU power limit (all GPUs)
+After=nvidia-persistenced.service
+
+[Service]
+Type=oneshot
+Environment=WATTS=220
+ExecStart=/usr/local/sbin/gpu-power-limit.sh
