@@ -1,7 +1,7 @@
 # quad-3090-llm-bench
 
-vLLM throughput, latency, power and temperature measurements on **4× RTX 3090 with no P2P and no NVLink**,
-plus the scripts that produced them.
+vLLM throughput, latency, power and temperature measurements on **4× RTX 3090 with no PCIe P2P**,
+plus the scripts that produced them. One pair has an NVLink bridge since 2026-11-04 (see [NVLink A/B](#nvlink-ab-flash-next-on-merlin)).
 
 The machine, its fan control and its cooling quirks are documented in
 [mc62-g40-quad-3090](https://github.com/TheSOV/mc62-g40-quad-3090). Hotspot and GDDR6X temperatures come from
@@ -12,7 +12,7 @@ that repo's `gpu-fancontrol` daemon (`/run/gpu-fancontrol/temps.json`), because 
 | | |
 |---|---|
 | GPUs | 4× RTX 3090 24 GB: 2 Founders Edition cards converted to blower coolers, 1 Gigabyte Turbo (blower), 1 Founders Edition |
-| Interconnect | PCIe 4.0, **no P2P on any pair**, NVLink not in use, Resizable BAR off (BAR1 256 MB) |
+| Interconnect | PCIe 4.0, **no PCIe P2P on any pair**, Resizable BAR off (BAR1 256 MB). NVLink bridge (NV4, 4 × 14.06 GB/s) between GPUs 0 and 2 from 2026-11-04; not used in the 2026-11-01 runs |
 | Board / CPU | Gigabyte MC62-G40, Threadripper PRO 5965WX, 128 GB RAM |
 | Software | Ubuntu 26.04, kernel 7.0, NVIDIA 615.71.09 (open), vLLM 0.32.0, torch 2.13.0+cu132, FlashInfer 0.7.0.post1, AIPerf 0.13.0 |
 | Case fans | front fans driven by `gpu-fancontrol`, 40–100 % |
@@ -90,6 +90,40 @@ The case fans follow the GPUs, so lower power also means slower fans.
 - This machine now runs at **220 W** ([`power/`](power/)). The fan curves were made more aggressive after this
   sweep, so later runs are not directly comparable in temperature.
 
+### NVLink A/B: Flash-Next on Merlin
+
+2026-11-04, one pass per configuration, 220 W, 0 errors. Qwen3.8-Flash-Next served by
+[Merlin](https://github.com/halt95/merlin-engine) (a vLLM 0.32.0 fork), profile `fn-quad-3090-nop2p`: TP2 × PP2 with
+expert parallel, `NCCL_P2P_DISABLE=1`.
+
+- **A:** `CUDA_VISIBLE_DEVICES=0,1,2,3`: TP pairs (0,1) and (2,3), no P2P, every NCCL channel over shared memory.
+- **B:** `CUDA_VISIBLE_DEVICES=0,2,1,3` + [`patches/merlin-nccl-p2p-nvl.patch`](patches/merlin-nccl-p2p-nvl.patch)
+  (`MERLIN_NCCL_P2P_NVL=1` drops `NCCL_P2P_DISABLE` and sets `NCCL_P2P_LEVEL=NVL`): the NVLink pair (0,2) is a TP
+  pair and NCCL uses P2P only over NVLink. The NCCL log shows the 0–2 channels `via P2P/CUMEM`, the rest `via SHM`.
+
+Merlin classes a host with P2P on only 1 of 6 pairs as "P2P off" and refuses its P2P profiles, hence the patch.
+
+| Scenario (prompt / answer tokens) | Users | Total output t/s, A → B | TTFT, A → B | Prefill, 1 user (median tok/s), B vs. A |
+|---|---|---|---|---|
+| prefill-4k (4096 / 64) | 1 | 46 → 49 (+5 %) | 0.92 → 0.89 s | 4181 (+5 %) |
+| | 8 | 105 → 113 (+8 %) | 2.38 → 2.14 s | |
+| prefill-32k (32768 / 64) | 1 | 9.7 → 10.5 (+8 %) | 6.18 → 5.67 s | 5080 (+9 %) |
+| | 8 | 17.6 → 19.4 (+10 %) | 22.4 → 20.1 s | |
+| medio (1024 / 1024) | 1 | 127 → 122 (−4 %) | 0.36 → 0.33 s | 2860 (+9 %) |
+| | 4 | 307 → 298 (−3 %) | 0.52 → 0.46 s | |
+| | 8 | 417 → 454 (+9 %) | 0.80 → 0.72 s | |
+| largo (8192 / 1024) | 1 | 112 → 109 (−3 %) | 1.68 → 1.55 s | 4704 (+9 %) |
+| | 4 | 245 → 258 (+5 %) | 2.59 → 2.32 s | |
+| | 8 | 300 → 347 (+15 %) | 4.46 → 3.97 s | |
+
+- **Prefill +5 to +9 %, TTFT 3–12 % lower in every test, +9 to +15 % total throughput at 8 users.**
+- **Single-user decode 4–6 % slower** (inter-token latency 7.51 → 7.88 ms on medio). One pass with MTP speculative
+  decoding, so it may be noise, or NCCL P2P latency on small messages. Not confirmed yet.
+- Power and temperatures: the same.
+- B is what the server runs now (a systemd drop-in with the two environment variables).
+
+Files: [`bench/nvlink_ab.sh`](bench/nvlink_ab.sh), [`results/2026-11-04-nvlink-ab`](results/2026-11-04-nvlink-ab).
+
 ## Files
 
 | Path | What |
@@ -98,6 +132,9 @@ The case fans follow the GPUs, so lower power also means slower fans.
 | [`bench/run_all.sh`](bench/run_all.sh) | Queue of configurations, skips completed ones |
 | [`bench/power_sweep.sh`](bench/power_sweep.sh) | Power-limit sweep (sudo; bench.py runs as the calling user), restores the limit at the end |
 | [`bench/summary.py`](bench/summary.py) | Table of results: `python3 bench/summary.py "" results/2026-11-01-quick` |
+| [`bench/realtext.py`](bench/realtext.py) | Decode speed on real prompts (code, explanation, prose), for models with MTP; `bench.py --realtext 1,2,5` |
+| [`bench/nvlink_ab.sh`](bench/nvlink_ab.sh) | NVLink A/B on Flash-Next (Merlin) |
+| [`patches/merlin-nccl-p2p-nvl.patch`](patches/merlin-nccl-p2p-nvl.patch) | Merlin opt-in: NCCL P2P over NVLink only on a P2P-off profile |
 | [`bench/dl_limited.sh`](bench/dl_limited.sh) | Rate-limited, resumable Hugging Face download (a full-speed download saturated the link here) |
 | [`power/`](power/) | systemd timer that sets the GPU power limit at boot and re-checks it every 5 min |
 | `results/<round>/<config>/results.json` | Metrics per concurrency level (AIPerf + power + temperatures + prefix-cache hits) |

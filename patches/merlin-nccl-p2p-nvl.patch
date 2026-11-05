@@ -1,0 +1,17 @@
+diff --git a/tools/merlin/launch.py b/tools/merlin/launch.py
+index 43c646d..497f223 100755
+--- a/tools/merlin/launch.py
++++ b/tools/merlin/launch.py
+@@ -960,6 +960,12 @@ def _build_flash_next(reg, p, checkpoint, ckpt, env, extra, repo: Path) -> Plan:
+             e.pop(var, None)
+         for k, v in mode.get("exports", {}).items():
+             e[k] = str(v)
++        # Local opt-in (gpu-server): on a P2P-off row, let NCCL use P2P over NVLink bridges only. Pairs without NVLink
++        # keep NCCL's non-P2P transport. Order the GPUs so each bridged pair is a TP pair (CUDA_VISIBLE_DEVICES).
++        if environ_in.get("MERLIN_NCCL_P2P_NVL") == "1":
++            e.pop("NCCL_P2P_DISABLE", None)
++            e["NCCL_P2P_LEVEL"] = "NVL"
++            notes.append("note: MERLIN_NCCL_P2P_NVL=1: NCCL P2P over NVLink only (NCCL_P2P_LEVEL=NVL)")
+ 
+     platform_env(env)
+     if lay["pp"] > 1:

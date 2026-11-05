@@ -56,6 +56,18 @@ CONFIGS = {
 }
 
 
+# Merlin (vLLM 0.32.0 fork, ~/gpu-server/tools/merlin-engine): `merlin serve` builds the vLLM arguments from a profile.
+# name: (checkpoint dir, served model name, merlin serve args)
+MERLIN = os.path.expanduser("~/merlin-env/bin/merlin")
+MERLIN_CUDA = os.path.expanduser("~/cuda-13.2")   # CUDA 13.2: the locked 13.0 nvcc does not compile against glibc 2.43
+MERLIN_CONFIGS = {
+    "flashnext-merlin-nop2p":     ("/data/models/flash-next-merlin", "flash-next",
+                                   ["--profile", "fn-quad-3090-nop2p"]),
+    "flashnext-merlin-nop2p-pp4": ("/data/models/flash-next-merlin", "flash-next",
+                                   ["--profile", "fn-quad-3090-nop2p-pp4"]),
+}
+
+
 def log(*a):
     print(time.strftime("%H:%M:%S"), *a, flush=True)
 
@@ -180,6 +192,9 @@ SCENARIOS = {
     "medio":       (1024, 0, 1024, [1, 8, 32, 64]),
     "largo":       (8192, 0, 1024, [1, 4, 16]),
     "largo-cache": (512, 7680, 1024, [1, 4, 16, 32]),
+    # prefill only (short output): time to first token at 4K and 32K prompt tokens, one request at a time
+    "prefill-4k":  (4096, 0, 64, [1]),
+    "prefill-32k": (32768, 0, 64, [1]),
 }
 
 
@@ -204,6 +219,45 @@ def aiperf_metrics(d):
             "requests": g("request_count"), "errors": g("error_request_count")}
 
 
+def prefill_stats(d):
+    """Prefill speed per request = input tokens / TTFT, from AIPerf's per-request records.
+    Median, so requests that hit the prefix cache or waited in the queue don't skew it
+    (AIPerf's prefill_throughput_per_user is a mean of ratios and is skewed by both)."""
+    path = next((os.path.join(r, f) for r, _, fs in os.walk(d) for f in fs if f == "profile_export.jsonl"), None)
+    if not path:
+        return {}
+    rates = []
+    for line in open(path):
+        try:
+            m = json.loads(line).get("metrics", {})
+            t, i = m["time_to_first_token"]["value"], m["input_sequence_length"]["value"]
+        except (ValueError, KeyError, TypeError):
+            continue
+        if t and i:
+            rates.append(i / (t / 1000))
+    if not rates:
+        return {}
+    rates.sort()
+    return {"prefill_tok_s_median": round(rates[len(rates) // 2]), "prefill_tok_s_min": round(rates[0])}
+
+
+def barrier(spec, key, me, timeout=4 * 3600):
+    """--barrier DIR:N: wait until N bench.py runs (side by side on other GPUs) reach the same point.
+    A run that ends (or crashes) leaves DIR/done.<name>, so the others never wait for it."""
+    if not spec:
+        return
+    d, n = spec.rsplit(":", 1)
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, f"{key}.{me}"), "w").close()
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        names = {f.split(".", 1)[1] for f in os.listdir(d) if f.startswith((key + ".", "done."))}
+        if len(names) >= int(n):
+            return
+        time.sleep(2)
+    log(f"barrier {key}: timeout, going on")
+
+
 def _sigterm(*_):
     raise KeyboardInterrupt  # run the finally: block, which stops vLLM
 
@@ -211,7 +265,8 @@ def _sigterm(*_):
 def main():
     signal.signal(signal.SIGTERM, _sigterm)
     ap = argparse.ArgumentParser()
-    ap.add_argument("name", choices=CONFIGS)
+    ap.add_argument("name", choices=[*CONFIGS, *MERLIN_CONFIGS])
+    ap.add_argument("--realtext", default="", help="after the AIPerf levels, realtext.py at these concurrencies, e.g. 1,2,5")
     ap.add_argument("--scenarios", default="corto,medio,largo,largo-cache",
                     help="comma list of: " + ", ".join(SCENARIOS))
     ap.add_argument("--conc", default="", help="override concurrency levels, e.g. 1,8")
@@ -220,22 +275,42 @@ def main():
     ap.add_argument("--extra", default="", help="extra vllm serve args, e.g. \"--kv-cache-dtype fp8\"")
     ap.add_argument("--env", action="append", default=[], help="extra env for vllm, KEY=VALUE")
     ap.add_argument("--tag", default="", help="suffix for the results directory")
+    ap.add_argument("--max-conc", type=int, default=0, help="drop concurrency levels above this")
+    ap.add_argument("--req-mult", type=int, default=2, help="requests per level = max(req_mult * c, min_req)")
+    ap.add_argument("--min-req", type=int, default=8)
+    ap.add_argument("--barrier", default="", help="DIR:N, start every level together with N-1 other runs")
     a = ap.parse_args()
 
-    model, gpus, args = CONFIGS[a.name]
-    args = args + a.extra.split()
+    tokenizer = None
+    if a.name in MERLIN_CONFIGS:
+        tokenizer, model, args = MERLIN_CONFIGS[a.name]
+        gpus = "0,1,2,3"
+        args = args + (["--", *a.extra.split()] if a.extra else [])
+    else:
+        model, gpus, args = CONFIGS[a.name]
+        args = args + a.extra.split()
+    tokenizer = tokenizer or model
     out = os.path.join(OUT, a.name + (f"-{a.power}W" if a.power else "") + (f"-{a.tag}" if a.tag else ""))
     os.makedirs(out, exist_ok=True)
     nv.nvmlInit()
     gl = [int(x) for x in gpus.split(",")]
 
-    env = dict(os.environ, **ENV, CUDA_VISIBLE_DEVICES=gpus, **dict(e.split("=", 1) for e in a.env))
-    cmd = [VLLM, "serve", model, "--port", str(a.port), "--gpu-memory-utilization", "0.92", *args]
+    env = dict(os.environ, **ENV, CUDA_VISIBLE_DEVICES=gpus)
+    env.update(dict(e.split("=", 1) for e in a.env))   # --env wins, CUDA_VISIBLE_DEVICES included
+    # 127.0.0.1: the benchmark only talks to it locally; an unauthenticated server must not be reachable from the VPN.
+    if a.name in MERLIN_CONFIGS:
+        env.update(HOST="127.0.0.1", PORT=str(a.port), CUDA_HOME=MERLIN_CUDA,
+                   VENV=os.path.dirname(os.path.dirname(MERLIN)),   # else it looks for merlin-engine/venv
+                   PATH=MERLIN_CUDA + "/bin:" + os.environ.get("PATH", ""))
+        cmd = [MERLIN, "serve", tokenizer, *args]
+    else:
+        cmd = [VLLM, "serve", model, "--host", "127.0.0.1", "--port", str(a.port), "--gpu-memory-utilization", "0.92", *args]
     log("starting:", " ".join(cmd[1:]), f"(GPUs {gpus})")
     srv_log = open(os.path.join(out, "vllm.log"), "w")
     proc = subprocess.Popen(cmd, env=env, stdout=srv_log, stderr=subprocess.STDOUT, start_new_session=True)
     results = {"name": a.name, "model": model, "gpus": gpus, "vllm_args": args,
-               "power_label_W": a.power, "env": a.env, "levels": []}
+               "power_label_W": a.power, "env": a.env, "levels": [],
+               "requests_per_level": f"max({a.req_mult} * c, {a.min_req})", "max_conc": a.max_conc or None}
     sampler = Sampler(gl, os.path.join(out, "gpu_samples.csv"))
     sampler.start()
     try:
@@ -243,14 +318,17 @@ def main():
         log(f"ready in {results['startup_s']} s")
         results["smoke"] = smoke(a.port, model)
         log("smoke:", results["smoke"][:300].replace("\n", " "))
+        barrier(a.barrier, "ready", a.name)
         for sc in a.scenarios.split(","):
             isl, prefix, osl, levels = SCENARIOS[sc]
             if a.conc:
                 levels = [int(x) for x in a.conc.split(",")]
+            if a.max_conc:
+                levels = [c for c in levels if c <= a.max_conc]
             for c in levels:
                 d = os.path.join(out, sc, f"c{c}")
-                n = max(2 * c, 8)   # 1024-token outputs: ~1000 ITL samples per request
-                acmd = [AIPERF, "profile", "--model", model, "--tokenizer", model,
+                n = max(a.req_mult * c, a.min_req)   # 1024-token outputs: ~1000 ITL samples per request
+                acmd = [AIPERF, "profile", "--model", model, "--tokenizer", tokenizer,
                         "--url", f"http://127.0.0.1:{a.port}", "--endpoint-type", "chat", "--streaming",
                         "--synthetic-input-tokens-mean", str(isl), "--synthetic-input-tokens-stddev", "0",
                         "--output-tokens-mean", str(osl), "--output-tokens-stddev", "0",
@@ -260,6 +338,7 @@ def main():
                         "--artifact-dir", d, "--ui", "none", "--no-gpu-telemetry", "--no-server-metrics"]
                 if prefix:
                     acmd += ["--shared-system-prompt-length", str(prefix)]
+                barrier(a.barrier, f"{sc}-c{c}", a.name)
                 pc0 = prefix_cache_counters(a.port)
                 t0 = time.time()
                 r = subprocess.run(acmd, env=dict(os.environ, HF_HOME=ENV["HF_HOME"]),
@@ -269,7 +348,8 @@ def main():
                 os.makedirs(d, exist_ok=True)
                 open(os.path.join(d, "aiperf.log"), "w").write(r.stdout + r.stderr)
                 m = {"scenario": sc, "isl": isl + prefix, "shared_prefix": prefix, "osl": osl,
-                     "concurrency": c, "wall_s": round(t1 - t0), **aiperf_metrics(d), **sampler.summary(t0, t1)}
+                     "concurrency": c, "wall_s": round(t1 - t0), **aiperf_metrics(d), **prefill_stats(d),
+                     **sampler.summary(t0, t1)}
                 if pc0 and pc1 and pc1[1] > pc0[1]:
                     m["prefix_hit_pct"] = round(100 * (pc1[0] - pc0[0]) / (pc1[1] - pc0[1]), 1)
                 if m.get("avg_total_W"):
@@ -282,8 +362,27 @@ def main():
                 if r.returncode != 0:
                     log(f"aiperf exited {r.returncode}; see {d}/aiperf.log")
                 json.dump(results, open(os.path.join(out, "results.json"), "w"), indent=1)
+        if a.realtext:
+            rt_out = os.path.join(out, "realtext.json")
+            t0 = time.time()
+            r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "realtext.py"),
+                                "--port", str(a.port), "--model", model, "--conc", a.realtext, "--out", rt_out],
+                               capture_output=True, text=True)
+            t1 = time.time()
+            open(os.path.join(out, "realtext.log"), "w").write(r.stdout + r.stderr)
+            if os.path.exists(rt_out):
+                rt = json.load(open(rt_out))
+                results["realtext"] = [{k: v for k, v in lv.items() if k != "samples"} for lv in rt["levels"]]
+                results["realtext_gpu"] = sampler.summary(t0, t1)
+                log("realtext:", json.dumps(results["realtext"]))
+            else:
+                log(f"realtext.py failed ({r.returncode}); see {out}/realtext.log")
         results["complete"] = True
     finally:
+        if a.barrier:
+            d = a.barrier.rsplit(":", 1)[0]
+            os.makedirs(d, exist_ok=True)
+            open(os.path.join(d, f"done.{a.name}"), "w").close()
         sampler.close()
         try:
             os.killpg(proc.pid, signal.SIGTERM)

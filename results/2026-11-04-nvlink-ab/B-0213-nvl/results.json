@@ -1,0 +1,683 @@
+{
+ "name": "flashnext-merlin-nop2p",
+ "model": "flash-next",
+ "gpus": "0,1,2,3",
+ "vllm_args": [
+  "--profile",
+  "fn-quad-3090-nop2p"
+ ],
+ "power_label_W": 220,
+ "env": [
+  "NCCL_DEBUG=INFO",
+  "NCCL_DEBUG_SUBSYS=INIT",
+  "CUDA_VISIBLE_DEVICES=0,2,1,3",
+  "MERLIN_NCCL_P2P_NVL=1"
+ ],
+ "levels": [
+  {
+   "scenario": "prefill-4k",
+   "isl": 4096,
+   "shared_prefix": 0,
+   "osl": 64,
+   "concurrency": 1,
+   "wall_s": 18,
+   "out_tok_s": 48.56,
+   "in_tok_s": 3107.64,
+   "total_tok_s": 3156.2,
+   "prefill_tok_s_user": 6746.51,
+   "req_s": 0.76,
+   "ttft_ms_avg": 890.09,
+   "ttft_ms_p99": 1116.35,
+   "itl_ms_avg": 6.76,
+   "itl_ms_p99": 8.1,
+   "user_tok_s": 149.73,
+   "requests": 8.0,
+   "errors": null,
+   "prefill_tok_s_median": 4181,
+   "prefill_tok_s_min": 3259,
+   "max_hotspot_C": 85,
+   "max_vram_C": 78,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     70,
+     81,
+     78
+    ],
+    "1": [
+     68,
+     85,
+     78
+    ],
+    "2": [
+     67,
+     78,
+     74
+    ],
+    "3": [
+     49,
+     60,
+     76
+    ]
+   },
+   "avg_total_W": 731.2,
+   "max_core_C": 71,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1715,
+   "energy_J": 13248,
+   "prefix_hit_pct": 10.9,
+   "tok_per_J": 0.066,
+   "total_tok_per_J": 4.316
+  },
+  {
+   "scenario": "prefill-4k",
+   "isl": 4096,
+   "shared_prefix": 0,
+   "osl": 64,
+   "concurrency": 4,
+   "wall_s": 15,
+   "out_tok_s": 97.49,
+   "in_tok_s": 6239.05,
+   "total_tok_s": 6336.54,
+   "prefill_tok_s_user": 8003.55,
+   "req_s": 1.52,
+   "ttft_ms_avg": 1327.84,
+   "ttft_ms_p99": 3302.39,
+   "itl_ms_avg": 19.76,
+   "itl_ms_p99": 41.79,
+   "user_tok_s": 65.18,
+   "requests": 8.0,
+   "errors": null,
+   "prefill_tok_s_median": 3217,
+   "prefill_tok_s_min": 1217,
+   "max_hotspot_C": 85,
+   "max_vram_C": 80,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     70,
+     81,
+     78
+    ],
+    "1": [
+     68,
+     85,
+     80
+    ],
+    "2": [
+     67,
+     78,
+     74
+    ],
+    "3": [
+     50,
+     61,
+     78
+    ]
+   },
+   "avg_total_W": 744.4,
+   "max_core_C": 71,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1695,
+   "energy_J": 10883,
+   "prefix_hit_pct": 32.7,
+   "tok_per_J": 0.131,
+   "total_tok_per_J": 8.512
+  },
+  {
+   "scenario": "prefill-4k",
+   "isl": 4096,
+   "shared_prefix": 0,
+   "osl": 64,
+   "concurrency": 8,
+   "wall_s": 22,
+   "out_tok_s": 113.4,
+   "in_tok_s": 7257.66,
+   "total_tok_s": 7371.06,
+   "prefill_tok_s_user": 8529.39,
+   "req_s": 1.77,
+   "ttft_ms_avg": 2136.22,
+   "ttft_ms_p99": 6359.14,
+   "itl_ms_avg": 35.84,
+   "itl_ms_p99": 86.88,
+   "user_tok_s": 39.37,
+   "requests": 16.0,
+   "errors": null,
+   "prefill_tok_s_median": 2027,
+   "prefill_tok_s_min": 623,
+   "max_hotspot_C": 86,
+   "max_vram_C": 84,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     71,
+     82,
+     80
+    ],
+    "1": [
+     69,
+     86,
+     84
+    ],
+    "2": [
+     67,
+     79,
+     76
+    ],
+    "3": [
+     51,
+     62,
+     80
+    ]
+   },
+   "avg_total_W": 786.2,
+   "max_core_C": 71,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1668,
+   "energy_J": 17183,
+   "prefix_hit_pct": 32.7,
+   "tok_per_J": 0.144,
+   "total_tok_per_J": 9.376
+  },
+  {
+   "scenario": "prefill-32k",
+   "isl": 32768,
+   "shared_prefix": 0,
+   "osl": 64,
+   "concurrency": 1,
+   "wall_s": 62,
+   "out_tok_s": 10.45,
+   "in_tok_s": 5352.16,
+   "total_tok_s": 5362.62,
+   "prefill_tok_s_user": 22720.84,
+   "req_s": 0.16,
+   "ttft_ms_avg": 5672.12,
+   "ttft_ms_p99": 6468.94,
+   "itl_ms_avg": 7.11,
+   "itl_ms_p99": 8.81,
+   "user_tok_s": 142.86,
+   "requests": 8.0,
+   "errors": null,
+   "prefill_tok_s_median": 5080,
+   "prefill_tok_s_min": 5060,
+   "max_hotspot_C": 88,
+   "max_vram_C": 84,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     72,
+     83,
+     82
+    ],
+    "1": [
+     71,
+     88,
+     84
+    ],
+    "2": [
+     67,
+     79,
+     78
+    ],
+    "3": [
+     53,
+     64,
+     82
+    ]
+   },
+   "avg_total_W": 834.2,
+   "max_core_C": 72,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1607,
+   "energy_J": 51385,
+   "prefix_hit_pct": 11.1,
+   "tok_per_J": 0.013,
+   "total_tok_per_J": 6.428
+  },
+  {
+   "scenario": "prefill-32k",
+   "isl": 32768,
+   "shared_prefix": 0,
+   "osl": 64,
+   "concurrency": 4,
+   "wall_s": 59,
+   "out_tok_s": 18.9,
+   "in_tok_s": 9675.56,
+   "total_tok_s": 9694.46,
+   "prefill_tok_s_user": 39875.84,
+   "req_s": 0.3,
+   "ttft_ms_avg": 9421.19,
+   "ttft_ms_p99": 25488.58,
+   "itl_ms_avg": 63.68,
+   "itl_ms_p99": 130.51,
+   "user_tok_s": 42.58,
+   "requests": 8.0,
+   "errors": null,
+   "prefill_tok_s_median": 4848,
+   "prefill_tok_s_min": 1267,
+   "max_hotspot_C": 88,
+   "max_vram_C": 86,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     71,
+     82,
+     84
+    ],
+    "1": [
+     71,
+     88,
+     86
+    ],
+    "2": [
+     67,
+     78,
+     78
+    ],
+    "3": [
+     54,
+     65,
+     82
+    ]
+   },
+   "avg_total_W": 837.5,
+   "max_core_C": 71,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1601,
+   "energy_J": 49452,
+   "prefix_hit_pct": 33.3,
+   "tok_per_J": 0.023,
+   "total_tok_per_J": 11.575
+  },
+  {
+   "scenario": "prefill-32k",
+   "isl": 32768,
+   "shared_prefix": 0,
+   "osl": 64,
+   "concurrency": 8,
+   "wall_s": 111,
+   "out_tok_s": 19.37,
+   "in_tok_s": 9916.88,
+   "total_tok_s": 9936.25,
+   "prefill_tok_s_user": 17914.39,
+   "req_s": 0.3,
+   "ttft_ms_avg": 20119.79,
+   "ttft_ms_p99": 50447.72,
+   "itl_ms_avg": 95.89,
+   "itl_ms_p99": 160.38,
+   "user_tok_s": 24.34,
+   "requests": 16.0,
+   "errors": null,
+   "prefill_tok_s_median": 1586,
+   "prefill_tok_s_min": 639,
+   "max_hotspot_C": 89,
+   "max_vram_C": 86,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     71,
+     82,
+     84
+    ],
+    "1": [
+     72,
+     89,
+     86
+    ],
+    "2": [
+     67,
+     78,
+     78
+    ],
+    "3": [
+     55,
+     66,
+     84
+    ]
+   },
+   "avg_total_W": 853.9,
+   "max_core_C": 72,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1586,
+   "energy_J": 94359,
+   "prefix_hit_pct": 33.3,
+   "tok_per_J": 0.023,
+   "total_tok_per_J": 11.636
+  },
+  {
+   "scenario": "medio",
+   "isl": 1024,
+   "shared_prefix": 0,
+   "osl": 1024,
+   "concurrency": 1,
+   "wall_s": 82,
+   "out_tok_s": 121.86,
+   "in_tok_s": 122.04,
+   "total_tok_s": 243.89,
+   "prefill_tok_s_user": 3485.48,
+   "req_s": 0.12,
+   "ttft_ms_avg": 332.01,
+   "ttft_ms_p99": 370.23,
+   "itl_ms_avg": 7.88,
+   "itl_ms_p99": 8.2,
+   "user_tok_s": 126.99,
+   "requests": 8.0,
+   "errors": null,
+   "prefill_tok_s_median": 2860,
+   "prefill_tok_s_min": 2764,
+   "max_hotspot_C": 88,
+   "max_vram_C": 88,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     71,
+     83,
+     80
+    ],
+    "1": [
+     71,
+     88,
+     88
+    ],
+    "2": [
+     67,
+     78,
+     76
+    ],
+    "3": [
+     55,
+     67,
+     88
+    ]
+   },
+   "avg_total_W": 852.4,
+   "max_core_C": 72,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1821,
+   "energy_J": 69620,
+   "prefix_hit_pct": 10.3,
+   "tok_per_J": 0.143,
+   "total_tok_per_J": 0.286
+  },
+  {
+   "scenario": "medio",
+   "isl": 1024,
+   "shared_prefix": 0,
+   "osl": 1024,
+   "concurrency": 4,
+   "wall_s": 47,
+   "out_tok_s": 297.55,
+   "in_tok_s": 297.91,
+   "total_tok_s": 595.46,
+   "prefill_tok_s_user": 3840.16,
+   "req_s": 0.29,
+   "ttft_ms_avg": 456.48,
+   "ttft_ms_p99": 909.38,
+   "itl_ms_avg": 12.66,
+   "itl_ms_p99": 13.56,
+   "user_tok_s": 79.32,
+   "requests": 8.0,
+   "errors": null,
+   "prefill_tok_s_median": 1975,
+   "prefill_tok_s_min": 981,
+   "max_hotspot_C": 87,
+   "max_vram_C": 92,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     70,
+     82,
+     82
+    ],
+    "1": [
+     71,
+     87,
+     92
+    ],
+    "2": [
+     66,
+     77,
+     78
+    ],
+    "3": [
+     54,
+     66,
+     92
+    ]
+   },
+   "avg_total_W": 838.4,
+   "max_core_C": 71,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1676,
+   "energy_J": 38989,
+   "prefix_hit_pct": 30.9,
+   "tok_per_J": 0.355,
+   "total_tok_per_J": 0.71
+  },
+  {
+   "scenario": "medio",
+   "isl": 1024,
+   "shared_prefix": 0,
+   "osl": 1024,
+   "concurrency": 8,
+   "wall_s": 60,
+   "out_tok_s": 454.42,
+   "in_tok_s": 454.89,
+   "total_tok_s": 909.31,
+   "prefill_tok_s_user": 3176.1,
+   "req_s": 0.44,
+   "ttft_ms_avg": 720.47,
+   "ttft_ms_p99": 1795.2,
+   "itl_ms_avg": 16.11,
+   "itl_ms_p99": 18.61,
+   "user_tok_s": 62.77,
+   "requests": 16.0,
+   "errors": null,
+   "prefill_tok_s_median": 1231,
+   "prefill_tok_s_min": 569,
+   "max_hotspot_C": 88,
+   "max_vram_C": 92,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     70,
+     81,
+     84
+    ],
+    "1": [
+     71,
+     88,
+     92
+    ],
+    "2": [
+     66,
+     77,
+     78
+    ],
+    "3": [
+     54,
+     66,
+     92
+    ]
+   },
+   "avg_total_W": 842.5,
+   "max_core_C": 71,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1631,
+   "energy_J": 50567,
+   "prefix_hit_pct": 30.9,
+   "tok_per_J": 0.539,
+   "total_tok_per_J": 1.079
+  },
+  {
+   "scenario": "largo",
+   "isl": 8192,
+   "shared_prefix": 0,
+   "osl": 1024,
+   "concurrency": 1,
+   "wall_s": 90,
+   "out_tok_s": 109.43,
+   "in_tok_s": 876.37,
+   "total_tok_s": 985.8,
+   "prefill_tok_s_user": 10368.58,
+   "req_s": 0.11,
+   "ttft_ms_avg": 1548.36,
+   "ttft_ms_p99": 1764.38,
+   "itl_ms_avg": 7.63,
+   "itl_ms_p99": 8.27,
+   "user_tok_s": 131.89,
+   "requests": 8.0,
+   "errors": null,
+   "prefill_tok_s_median": 4704,
+   "prefill_tok_s_min": 4640,
+   "max_hotspot_C": 89,
+   "max_vram_C": 88,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     71,
+     83,
+     82
+    ],
+    "1": [
+     72,
+     89,
+     88
+    ],
+    "2": [
+     67,
+     78,
+     76
+    ],
+    "3": [
+     55,
+     67,
+     88
+    ]
+   },
+   "avg_total_W": 853.9,
+   "max_core_C": 72,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1793,
+   "energy_J": 76613,
+   "prefix_hit_pct": 11.0,
+   "tok_per_J": 0.128,
+   "total_tok_per_J": 1.154
+  },
+  {
+   "scenario": "largo",
+   "isl": 8192,
+   "shared_prefix": 0,
+   "osl": 1024,
+   "concurrency": 4,
+   "wall_s": 56,
+   "out_tok_s": 257.89,
+   "in_tok_s": 2065.88,
+   "total_tok_s": 2323.77,
+   "prefill_tok_s_user": 20977.45,
+   "req_s": 0.25,
+   "ttft_ms_avg": 2323.93,
+   "ttft_ms_p99": 6478.2,
+   "itl_ms_avg": 12.88,
+   "itl_ms_p99": 14.88,
+   "user_tok_s": 78.28,
+   "requests": 8.0,
+   "errors": null,
+   "prefill_tok_s_median": 3976,
+   "prefill_tok_s_min": 1243,
+   "max_hotspot_C": 89,
+   "max_vram_C": 92,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     71,
+     81,
+     82
+    ],
+    "1": [
+     72,
+     89,
+     92
+    ],
+    "2": [
+     66,
+     77,
+     78
+    ],
+    "3": [
+     55,
+     66,
+     92
+    ]
+   },
+   "avg_total_W": 840.7,
+   "max_core_C": 72,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1656,
+   "energy_J": 47312,
+   "prefix_hit_pct": 33.0,
+   "tok_per_J": 0.307,
+   "total_tok_per_J": 2.764
+  },
+  {
+   "scenario": "largo",
+   "isl": 8192,
+   "shared_prefix": 0,
+   "osl": 1024,
+   "concurrency": 8,
+   "wall_s": 83,
+   "out_tok_s": 346.6,
+   "in_tok_s": 2775.68,
+   "total_tok_s": 3122.28,
+   "prefill_tok_s_user": 15951.01,
+   "req_s": 0.34,
+   "ttft_ms_avg": 3971.03,
+   "ttft_ms_p99": 12760.83,
+   "itl_ms_avg": 18.44,
+   "itl_ms_p99": 25.9,
+   "user_tok_s": 55.83,
+   "requests": 16.0,
+   "errors": null,
+   "prefill_tok_s_median": 2157,
+   "prefill_tok_s_min": 632,
+   "max_hotspot_C": 89,
+   "max_vram_C": 92,
+   "max_case_fan_duty": 100,
+   "per_gpu_max": {
+    "0": [
+     71,
+     81,
+     84
+    ],
+    "1": [
+     72,
+     89,
+     90
+    ],
+    "2": [
+     66,
+     77,
+     78
+    ],
+    "3": [
+     55,
+     66,
+     92
+    ]
+   },
+   "avg_total_W": 841.9,
+   "max_core_C": 72,
+   "max_fan_rpm": -1,
+   "avg_sm_mhz": 1642,
+   "energy_J": 69477,
+   "prefix_hit_pct": 33.0,
+   "tok_per_J": 0.412,
+   "total_tok_per_J": 3.709
+  }
+ ],
+ "requests_per_level": "max(2 * c, 8)",
+ "max_conc": null,
+ "startup_s": 120,
+ "smoke": "La capital de Francia es Par\u00eds. El resultado de multiplicar 17 por 23 es 391.",
+ "complete": true
+}
