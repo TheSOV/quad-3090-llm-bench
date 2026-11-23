@@ -21,5 +21,6 @@ to another slot. A drop-in keeps it out of the unit file:
 Environment="WATTS_BY_UUID=GPU-25a0c115=260"
 ```
 
-Used here since 2026-11-18 on the card with recurring Xid 62 (see the
+Used here from 2026-11-18 to 11-23 on the card with recurring Xid 62; 260 W did not stop the failures
+(four in five days), so that card is back at 220 W (see the
 [MC62-G40 notes](https://github.com/TheSOV/mc62-g40-quad-3090/blob/main/docs/gpu-xid62-pmu-halt.md)).
